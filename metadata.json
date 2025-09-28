@@ -1,0 +1,5 @@
+{
+  "name": "Transparansi Kas PKU 19",
+  "description": "Aplikasi transparan untuk manajemen kas angkatan. Bendahara dapat mencatat transaksi, dan mahasiswa dapat melihat progres pembayaran bulanan mereka.",
+  "requestFramePermissions": []
+}
