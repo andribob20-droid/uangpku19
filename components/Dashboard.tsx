@@ -34,19 +34,20 @@ const Dashboard: React.FC<{ transactions: Transaction[] }> = ({ transactions }) 
     let infakPengeluaran = 0;
 
     for (const t of transactions) {
+      const jumlahAngka = Number(t.jumlah) || 0; // Convert to number, default to 0 if invalid
       if (t.tipe === TransactionType.Pemasukan) {
-        totalPemasukan += t.jumlah;
+        totalPemasukan += jumlahAngka;
         if (t.sumber_dana === SumberDana.Kas) {
-          kasPemasukan += t.jumlah;
+          kasPemasukan += jumlahAngka;
         } else if (t.sumber_dana === SumberDana.InfakDonasi) {
-          infakPemasukan += t.jumlah;
+          infakPemasukan += jumlahAngka;
         }
       } else if (t.tipe === TransactionType.Pengeluaran) {
-        totalPengeluaran += t.jumlah;
+        totalPengeluaran += jumlahAngka;
          if (t.sumber_dana === SumberDana.Kas) {
-          kasPengeluaran += t.jumlah;
+          kasPengeluaran += jumlahAngka;
         } else if (t.sumber_dana === SumberDana.InfakDonasi) {
-          infakPengeluaran += t.jumlah;
+          infakPengeluaran += jumlahAngka;
         }
       }
     }
