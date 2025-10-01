@@ -52,7 +52,7 @@ const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ transac
             } else {
                 const { jsPDF } = jspdf;
                 const pdf = new jsPDF({
-                    orientation: 'portrait',
+                    orientation: 'landscape',
                     unit: 'px',
                     format: [canvas.width, canvas.height]
                 });
@@ -72,8 +72,9 @@ const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ transac
     const isPemasukan = transaction.tipe === TransactionType.Pemasukan;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl relative max-h-[90vh] flex flex-col">
+         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center h-[100vh] top-[-32px] z-50 p-4">
+        {/* <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center h-[100vh] z-50 p-4"> */}
+            <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl relative max-h-[100vh] flex flex-col">
                 <div className="p-6 border-b border-gray-200">
                      <h2 className="text-2xl font-bold text-gray-800">Detail Transaksi</h2>
                      <button onClick={onClose} className="absolute top-4 right-4 text-3xl font-light text-gray-500 hover:text-gray-800">&times;</button>
