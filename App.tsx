@@ -331,8 +331,34 @@ function App() {
         else alert("Pembayaran berhasil ditambahkan dan divalidasi.");
     };
 
-    const handleAddIncome = async (incomeData: Omit<Transaction, 'id' | 'created_at' | 'ref_payment'>) => {
-        const newIncome = { ...incomeData, ref_payment: null, created_by: ADMIN_USER };
+    const handleAddIncome = async (incomeData: Omit<Transaction, 'id' | 'created_at' | 'ref_payment' | 'nota_url'>, notaFile: File | null) => {
+        let notaUrl: string | null = null;
+
+        if (notaFile) {
+            const fileExt = notaFile.name.split('.').pop();
+            const filePath = `public/incomes/${new Date().toISOString()}-${notaFile.name.replace(/\s/g, '_')}.${fileExt}`;
+            
+            const { error: uploadError } = await supabase.storage
+                .from('bukti-pembayaran')
+                .upload(filePath, notaFile);
+
+            if (uploadError) {
+                alert(`Gagal mengunggah bukti pemasukan: ${uploadError.message}`);
+                return;
+            }
+
+            const { data: urlData } = supabase.storage
+                .from('bukti-pembayaran')
+                .getPublicUrl(filePath);
+            
+            if (!urlData) {
+                alert("Gagal mendapatkan URL publik untuk bukti yang diunggah.");
+                return;
+            }
+            notaUrl = urlData.publicUrl;
+        }
+
+        const newIncome = { ...incomeData, nota_url: notaUrl, ref_payment: null, created_by: ADMIN_USER };
         const { error } = await supabase.from('transactions').insert(newIncome);
         if (error) alert(`Gagal menambah pemasukan: ${error.message}`);
         else alert("Pemasukan berhasil ditambahkan.");
