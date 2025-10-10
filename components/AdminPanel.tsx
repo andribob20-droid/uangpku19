@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import { Payment, Student, Transaction, PaymentStatus, TransactionType, SumberDana } from '../types';
 import BulkAddStudents from './BulkAddStudents';
-
-// Tell TypeScript about the global XLSX variable from the CDN script
-declare const XLSX: any;
+import MonthlyExport from './MonthlyExport';
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
@@ -445,83 +443,6 @@ const ManageTransactions: React.FC<{
         </div>
     );
 };
-
-const MonthlyExport: React.FC<{ transactions: Transaction[] }> = ({ transactions }) => {
-    const handleExport = () => {
-        if (typeof XLSX === 'undefined') {
-            alert("Library untuk ekspor Excel (XLSX) tidak termuat. Coba refresh halaman.");
-            return;
-        }
-
-        const now = new Date();
-        const currentMonth = now.getMonth();
-        const currentYear = now.getFullYear();
-        
-        const monthlyTransactions = transactions.filter(t => {
-            const date = new Date(t.tanggal);
-            return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
-        });
-
-        if (monthlyTransactions.length === 0) {
-            alert("Tidak ada transaksi di bulan ini untuk diekspor.");
-            return;
-        }
-        
-        const dataForSheet = monthlyTransactions.map(t => ({
-            'ID Transaksi': t.id,
-            'Tanggal': new Date(t.tanggal).toLocaleString('id-ID', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }),
-            'Tipe': t.tipe === 'pemasukan' ? 'Pemasukan' : 'Pengeluaran',
-            'Kategori': t.kategori,
-            'Deskripsi': t.deskripsi,
-            'Jumlah': t.jumlah,
-            'Sumber Dana': t.sumber_dana === 'kas' ? 'Kas Umum' : 'Infak/Donasi',
-            'Referensi Pembayaran': t.ref_payment || '-',
-            'URL Nota': t.nota_url || '-',
-            'Dibuat Oleh': t.created_by || '-',
-        }));
-
-        const ws = XLSX.utils.json_to_sheet(dataForSheet);
-
-        const columnWidths = [
-            { wch: 38 }, // ID Transaksi
-            { wch: 25 }, // Tanggal
-            { wch: 15 }, // Tipe
-            { wch: 25 }, // Kategori
-            { wch: 50 }, // Deskripsi
-            { wch: 15 }, // Jumlah
-            { wch: 20 }, // Sumber Dana
-            { wch: 38 }, // Referensi Pembayaran
-            { wch: 40 }, // URL Nota
-            { wch: 15 }, // Dibuat Oleh
-        ];
-        ws['!cols'] = columnWidths;
-
-        // Apply number format for the 'Jumlah' column (column F, index 5)
-        for (let i = 0; i < dataForSheet.length; i++) {
-            const cellRef = XLSX.utils.encode_cell({c: 5, r: i + 1});
-            if (ws[cellRef]) {
-                ws[cellRef].t = 'n'; // Set cell type to 'number'
-                ws[cellRef].z = '#,##0'; // Set number format
-            }
-        }
-
-        const wb = XLSX.utils.book_new();
-        const sheetName = `Laporan ${now.toLocaleString('id-ID', { month: 'long', year: 'numeric' })}`;
-        XLSX.utils.book_append_sheet(wb, ws, sheetName);
-
-        const fileName = `laporan_kas_${currentYear}-${String(currentMonth + 1).padStart(2, '0')}.xlsx`;
-        XLSX.writeFile(wb, fileName);
-    };
-    
-    return (
-         <div>
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Ekspor Laporan Excel</h3>
-            <p className="text-sm text-gray-600 mb-4">Unduh rekapitulasi transaksi bulan ini dalam format file Excel (.xlsx) dengan tabel yang rapi.</p>
-            <button onClick={handleExport} className="w-full py-2 px-4 bg-green-700 text-white font-semibold rounded-md hover:bg-green-800">Ekspor Excel Bulan Ini</button>
-        </div>
-    );
-};
-
 
 // --- Main Admin Panel Component ---
 
