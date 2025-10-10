@@ -162,6 +162,7 @@ function App() {
             'postgres_changes',
             { event: '*', schema: 'public' },
             (payload) => {
+                console.log('Change received!', payload);
                 switch (payload.table) {
                     case 'students':
                         handlePayload(setStudents, payload);
@@ -262,16 +263,48 @@ function App() {
         if (studentError) alert(`Gagal menghapus mahasiswa: ${studentError.message}`);
     };
     
-    const handleAddPayment = async (paymentData: { student_id: string; periode_bulan: string; tanggal: string; jumlah: number; metode: string; }) => {
+    const handleAddPayment = async (paymentData: { student_id: string; periode_bulan: string; tanggal: string; jumlah: number; metode: string; bukti_file: File | null; }) => {
         const student = students.find(s => s.id === paymentData.student_id);
         if (!student) return;
 
+        let buktiUrl = '';
+
+        // Handle file upload if a file is provided
+        if (paymentData.bukti_file) {
+            const file = paymentData.bukti_file;
+            const fileExt = file.name.split('.').pop();
+            const filePath = `public/payments/${paymentData.student_id}-${new Date().toISOString()}.${fileExt}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from('bukti-pembayaran')
+                .upload(filePath, file);
+            
+            if (uploadError) {
+                alert(`Gagal mengunggah bukti: ${uploadError.message}`);
+                return;
+            }
+            
+            const { data: urlData } = supabase.storage
+                .from('bukti-pembayaran')
+                .getPublicUrl(filePath);
+
+            if (!urlData) {
+                 alert("Gagal mendapatkan URL publik untuk bukti yang diunggah.");
+                 return;
+            }
+            buktiUrl = urlData.publicUrl;
+        }
+
+
         const newPayment: Omit<Payment, 'id' | 'created_at'> = {
-            ...paymentData,
-            bukti_url: '',
-            status: PaymentStatus.Valid,
-            verified_by: ADMIN_USER,
+            student_id: paymentData.student_id,
+            periode_bulan: paymentData.periode_bulan,
             tanggal: new Date(paymentData.tanggal).toISOString(),
+            jumlah: paymentData.jumlah,
+            metode: paymentData.metode,
+            bukti_url: buktiUrl,
+            status: PaymentStatus.Valid, // Directly validated by admin
+            verified_by: ADMIN_USER,
         };
 
         const { data, error: paymentError } = await supabase.from('payments').insert(newPayment).select().single();
@@ -286,10 +319,10 @@ function App() {
             tipe: TransactionType.Pemasukan,
             kategori: 'Iuran Wajib',
             sumber_dana: SumberDana.Kas,
-            deskripsi: `Pembayaran iuran dari ${student.name}`,
+            deskripsi: `Pembayaran iuran dari ${student.name} (${new Date(data.periode_bulan).toLocaleDateString('id-ID', {month:'long', year:'numeric', timeZone: 'UTC'})})`,
             jumlah: data.jumlah,
             ref_payment: data.id,
-            nota_url: null,
+            nota_url: buktiUrl || null,
             created_by: ADMIN_USER,
         };
 
@@ -305,10 +338,37 @@ function App() {
         else alert("Pemasukan berhasil ditambahkan.");
     };
 
-    const handleAddExpense = async (expenseData: Omit<Transaction, 'id' | 'created_at' | 'ref_payment'>) => {
-        const newExpense = { ...expenseData, ref_payment: null, created_by: ADMIN_USER };
+    const handleAddExpense = async (expenseData: Omit<Transaction, 'id' | 'created_at' | 'ref_payment' | 'nota_url'>, notaFile: File | null) => {
+        let notaUrl: string | null = null;
+
+        if (notaFile) {
+            const fileExt = notaFile.name.split('.').pop();
+            const filePath = `public/expenses/${new Date().toISOString()}-${notaFile.name.replace(/\s/g, '_')}.${fileExt}`;
+            
+            const { error: uploadError } = await supabase.storage
+                .from('bukti-pembayaran')
+                .upload(filePath, notaFile);
+
+            if (uploadError) {
+                alert(`Gagal mengunggah bukti pengeluaran: ${uploadError.message}`);
+                return;
+            }
+
+            const { data: urlData } = supabase.storage
+                .from('bukti-pembayaran')
+                .getPublicUrl(filePath);
+            
+            if (!urlData) {
+                alert("Gagal mendapatkan URL publik untuk bukti yang diunggah.");
+                return;
+            }
+            notaUrl = urlData.publicUrl;
+        }
+
+        const newExpense = { ...expenseData, nota_url: notaUrl, ref_payment: null, created_by: ADMIN_USER };
         const { error } = await supabase.from('transactions').insert(newExpense);
         if (error) alert(`Gagal menambah pengeluaran: ${error.message}`);
+        else alert("Pengeluaran berhasil ditambahkan.");
     };
 
     const handleUpdateTransaction = async (updatedTransaction: Transaction) => {
@@ -389,7 +449,6 @@ function App() {
                     {isLoggedIn && (
                         <AdminPanel 
                             students={students}
-                            payments={payments}
                             transactions={sortedTransactions}
                             onAddPayment={handleAddPayment}
                             onAddIncome={handleAddIncome}

@@ -5,6 +5,12 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 // 2. Go to the "Project Settings" page.
 // 3. Go to the "API" tab.
 // 4. Find your "Project URL" and "Project API keys" (use the anon, public one).
+// 5. IMPORTANT FOR FILE UPLOADS: Go to the "Storage" section in your Supabase dashboard.
+//    - Create a new bucket named `bukti-pembayaran`. This bucket will be used for both payment proofs and expense receipts.
+//    - Go to the bucket's "Policies" and create a new policy for public read access.
+//    - Give the policy a name (e.g., "Public Read Access").
+//    - Under "Allowed operations", check `SELECT` and `INSERT`.
+//    - For the policy definition, use the template "Enable read access to public folder" and save it.
 // FIX: Explicitly type as string to avoid a TypeScript error on line 14 where this constant is compared to a placeholder string.
 const supabaseUrl: string = 'https://zwljloikczeniehovtof.supabase.co';
 // FIX: Explicitly type as string to avoid a TypeScript error on line 16 where this constant is compared to a placeholder string.

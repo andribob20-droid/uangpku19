@@ -11,16 +11,30 @@ const formatCurrency = (amount: number) => {
 
 const AddPayment: React.FC<{
     students: Student[];
-    onAddPayment: (paymentData: { student_id: string; periode_bulan: string, tanggal: string; jumlah: number; metode: string; }) => void;
+    onAddPayment: (paymentData: { student_id: string; periode_bulan: string, tanggal: string; jumlah: number; metode: string; bukti_file: File | null; }) => void;
 }> = ({ students, onAddPayment }) => {
     const [formState, setFormState] = useState({
         student_id: '',
         periode_bulan: new Date().toISOString().slice(0, 7), // YYYY-MM
         tanggal: new Date().toISOString().split('T')[0],
-        jumlah: '',
+        jumlah: '100000',
         metode: 'Transfer Bank',
     });
+    const [buktiFile, setBuktiFile] = useState<File | null>(null);
     const [error, setError] = useState('');
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                setError('Ukuran file maksimal adalah 5MB.');
+                setBuktiFile(null);
+                return;
+            }
+            setError('');
+            setBuktiFile(file);
+        }
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -33,8 +47,13 @@ const AddPayment: React.FC<{
             ...formState,
             jumlah: Number(formState.jumlah),
             periode_bulan: `${formState.periode_bulan}-01`,
+            bukti_file: buktiFile,
         });
-        setFormState({ ...formState, student_id: '', jumlah: '' });
+        setFormState({ ...formState, student_id: '', jumlah: '100000' });
+        setBuktiFile(null);
+        // Reset file input
+        const fileInput = document.getElementById('bukti_file_admin') as HTMLInputElement;
+        if (fileInput) fileInput.value = '';
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -43,7 +62,8 @@ const AddPayment: React.FC<{
 
     return (
         <div>
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Tambah Pembayaran Manual</h3>
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Tambah Pembayaran & Bukti</h3>
+            <p className="text-sm text-gray-600 mb-4">Catat pembayaran iuran yang sudah divalidasi dan unggah bukti transfer yang dikirim mahasiswa.</p>
             <form onSubmit={handleSubmit} className="space-y-4">
                  <div>
                     <label className="block text-sm font-medium text-gray-700">Mahasiswa</label>
@@ -68,8 +88,13 @@ const AddPayment: React.FC<{
                     <label className="block text-sm font-medium text-gray-700">Metode</label>
                     <input type="text" name="metode" placeholder="Metode (e.g., Transfer Bank)" value={formState.metode} onChange={handleChange} className="w-full p-2 border rounded-md" required />
                 </div>
+                 <div>
+                    <label htmlFor="bukti_file_admin" className="block text-sm font-medium text-gray-700">Unggah Bukti (Opsional, max 5MB)</label>
+                    <input type="file" id="bukti_file_admin" name="bukti_file" accept="image/*" onChange={handleFileChange} className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+                    {buktiFile && <p className="text-xs text-gray-500 mt-1">File terpilih: {buktiFile.name}</p>}
+                </div>
                 {error && <p className="text-red-500 text-sm">{error}</p>}
-                <button type="submit" className="w-full py-2 px-4 bg-green-600 text-white font-semibold rounded-md hover:bg-green-700">Tambah Pembayaran</button>
+                <button type="submit" className="w-full py-2 px-4 bg-green-600 text-white font-semibold rounded-md hover:bg-green-700">Validasi & Tambah Pembayaran</button>
             </form>
         </div>
     );
@@ -236,18 +261,33 @@ const ManageStudents: React.FC<{
     );
 };
 
-const AddExpense: React.FC<{ onAddExpense: (expense: Omit<Transaction, 'id' | 'created_at' | 'ref_payment'>) => void; }> = ({ onAddExpense }) => {
+const AddExpense: React.FC<{ onAddExpense: (expenseData: Omit<Transaction, 'id' | 'created_at' | 'ref_payment' | 'nota_url' | 'created_by'>, notaFile: File | null) => void; }> = ({ onAddExpense }) => {
     const [formState, setFormState] = useState({
         tanggal: new Date().toISOString().split('T')[0],
         kategori: '',
         deskripsi: '',
         jumlah: '',
         sumber_dana: SumberDana.Kas,
-        nota_url: '',
     });
+    const [notaFile, setNotaFile] = useState<File | null>(null);
+    const [error, setError] = useState('');
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                setError('Ukuran file maksimal adalah 5MB.');
+                setNotaFile(null);
+                return;
+            }
+            setError('');
+            setNotaFile(file);
+        }
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        setError('');
         if(!formState.kategori || !formState.deskripsi || !formState.jumlah) {
             alert("Harap isi semua field wajib (Kategori, Deskripsi, Jumlah).");
             return;
@@ -259,10 +299,12 @@ const AddExpense: React.FC<{ onAddExpense: (expense: Omit<Transaction, 'id' | 'c
             deskripsi: formState.deskripsi,
             jumlah: Number(formState.jumlah),
             sumber_dana: formState.sumber_dana,
-            nota_url: formState.nota_url || null,
-            created_by: null, // Will be set in parent
-        });
-        setFormState({ tanggal: new Date().toISOString().split('T')[0], kategori: '', deskripsi: '', jumlah: '', sumber_dana: SumberDana.Kas, nota_url: '' });
+        }, notaFile);
+        
+        setFormState({ tanggal: new Date().toISOString().split('T')[0], kategori: '', deskripsi: '', jumlah: '', sumber_dana: SumberDana.Kas });
+        setNotaFile(null);
+        const fileInput = document.getElementById('nota_file_admin') as HTMLInputElement;
+        if (fileInput) fileInput.value = '';
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -285,9 +327,11 @@ const AddExpense: React.FC<{ onAddExpense: (expense: Omit<Transaction, 'id' | 'c
                     </select>
                 </div>
                  <div>
-                    <label className="block text-sm font-medium text-gray-700">URL Nota (Opsional)</label>
-                    <input type="url" name="nota_url" placeholder="https://example.com/nota.jpg" value={formState.nota_url} onChange={handleChange} className="w-full p-2 border rounded-md" />
+                    <label htmlFor="nota_file_admin" className="block text-sm font-medium text-gray-700">Unggah Bukti/Nota (Opsional, max 5MB)</label>
+                    <input type="file" id="nota_file_admin" name="nota_file" accept="image/*" onChange={handleFileChange} className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+                    {notaFile && <p className="text-xs text-gray-500 mt-1">File terpilih: {notaFile.name}</p>}
                 </div>
+                {error && <p className="text-red-500 text-sm">{error}</p>}
                 <button type="submit" className="w-full py-2 px-4 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700">Tambah</button>
             </form>
         </div>
@@ -448,11 +492,10 @@ const ManageTransactions: React.FC<{
 
 const AdminPanel: React.FC<{
   students: Student[];
-  payments: Payment[];
   transactions: Transaction[];
-  onAddPayment: (paymentData: { student_id: string; periode_bulan: string; tanggal: string; jumlah: number; metode: string; }) => void;
+  onAddPayment: (paymentData: { student_id: string; periode_bulan: string; tanggal: string; jumlah: number; metode: string; bukti_file: File | null; }) => void;
   onAddIncome: (income: Omit<Transaction, 'id' | 'created_at' | 'ref_payment'>) => void;
-  onAddExpense: (expense: Omit<Transaction, 'id' | 'created_at' | 'ref_payment'>) => void;
+  onAddExpense: (expenseData: Omit<Transaction, 'id' | 'created_at' | 'ref_payment' | 'nota_url' | 'created_by'>, notaFile: File | null) => void;
   onAddStudent: (studentData: Omit<Student, 'id'|'created_at'>) => void;
   onUpdateStudent: (student: Student) => void;
   onDeleteStudent: (studentId: string) => void;
